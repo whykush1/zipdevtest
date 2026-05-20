@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
 import QRCode from "qrcode";
@@ -16,6 +16,15 @@ type Output = {
   type: string;
 };
 
+const FILE_LIMITS_MB = {
+  media: 300,
+  audio: 200,
+  image: 50,
+  gifFrame: 20,
+  pdf: 50,
+  zip: 100,
+} as const;
+
 function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -27,6 +36,18 @@ function downloadBlob(blob: Blob, fileName: string) {
 
 function ffmpegDataToBlob(data: Uint8Array, type: string) {
   return new Blob([Uint8Array.from(data)], { type });
+}
+
+function useObjectUrl(source: Blob | null) {
+  const url = useMemo(() => (source ? URL.createObjectURL(source) : ""), [source]);
+
+  useEffect(() => {
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [url]);
+
+  return url;
 }
 
 function Progress({ progress }: { progress: number }) {
@@ -45,8 +66,8 @@ function ErrorMessage({ message }: { message: string }) {
 }
 
 function OutputPanel({ output }: { output: Output | null }) {
+  const url = useObjectUrl(output?.blob ?? null);
   if (!output) return null;
-  const url = URL.createObjectURL(output.blob);
 
   return (
     <div className="rounded-xl border border-green-200 bg-green-50 p-4">
@@ -85,7 +106,29 @@ function useWorkerState() {
   };
 }
 
-function validateSize(file: File, maxMb = 300) {
+function ImagePreview({ file }: { file: File | null }) {
+  const url = useObjectUrl(file);
+  if (!file || !url) return null;
+
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={url} alt="Input preview" className="max-h-56 rounded-lg" />;
+}
+
+function VideoPreview({ file }: { file: File | null }) {
+  const url = useObjectUrl(file);
+  if (!file || !url) return null;
+
+  return <video className="max-h-56 rounded-lg" controls src={url} />;
+}
+
+function AudioPreview({ file }: { file: File | null }) {
+  const url = useObjectUrl(file);
+  if (!file || !url) return null;
+
+  return <audio className="w-full" controls src={url} />;
+}
+
+function validateSize(file: File, maxMb: number = FILE_LIMITS_MB.media) {
   if (file.size > maxMb * 1024 * 1024) {
     throw new Error(`File is too large. Please use files under ${maxMb}MB for browser processing.`);
   }
@@ -234,9 +277,7 @@ function VideoTrimmerTool() {
   return (
     <div className="space-y-4">
       <FileDropzone accept="video/mp4,video/webm" onFiles={(files) => setFile(files[0] || null)} helperText="MP4 or WebM" />
-      {file ? (
-        <video className="max-h-56 rounded-lg" controls src={URL.createObjectURL(file)} />
-      ) : null}
+      <VideoPreview file={file} />
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="space-y-1 text-sm">
           Start (s)
@@ -278,7 +319,7 @@ function Mp3CutterTool() {
       state.setOutput(null);
       state.setIsWorking(true);
       state.setProgress(10);
-      validateSize(file, 200);
+      validateSize(file, FILE_LIMITS_MB.audio);
 
       const startValue = Number(start);
       const endValue = Number(end);
@@ -319,7 +360,7 @@ function Mp3CutterTool() {
   return (
     <div className="space-y-4">
       <FileDropzone accept="audio/*" onFiles={(files) => setFile(files[0] || null)} helperText="Select audio and export trimmed MP3" />
-      {file ? <audio className="w-full" controls src={URL.createObjectURL(file)} /> : null}
+      <AudioPreview file={file} />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1 text-sm">
           Start (s)
@@ -360,7 +401,7 @@ function AudioConverterTool() {
       state.setOutput(null);
       state.setIsWorking(true);
       state.setProgress(10);
-      validateSize(file, 200);
+      validateSize(file, FILE_LIMITS_MB.audio);
 
       const ffmpeg = await getFFmpeg();
       const inputName = `input.${file.name.split(".").pop() || "mp3"}`;
@@ -392,7 +433,7 @@ function AudioConverterTool() {
   return (
     <div className="space-y-4">
       <FileDropzone accept="audio/*" onFiles={(files) => setFile(files[0] || null)} helperText="Convert between MP3, WAV, AAC, OGG" />
-      {file ? <audio className="w-full" controls src={URL.createObjectURL(file)} /> : null}
+      <AudioPreview file={file} />
       <label className="block space-y-1 text-sm">
         Target format
         <select className="w-full rounded-lg border border-zinc-300 px-3 py-2" value={format} onChange={(e) => setFormat(e.target.value)}>
@@ -439,7 +480,7 @@ function ImageCompressorTool() {
       state.setOutput(null);
       state.setProgress(10);
       state.setIsWorking(true);
-      validateSize(file, 50);
+      validateSize(file, FILE_LIMITS_MB.image);
 
       const image = await loadImage(file);
       const canvas = document.createElement("canvas");
@@ -472,10 +513,7 @@ function ImageCompressorTool() {
   return (
     <div className="space-y-4">
       <FileDropzone accept="image/jpeg,image/png,image/webp" onFiles={(files) => setFile(files[0] || null)} helperText="JPG, PNG, or WebP" />
-      {file ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={URL.createObjectURL(file)} alt="Input preview" className="max-h-56 rounded-lg" />
-      ) : null}
+      <ImagePreview file={file} />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1 text-sm">
           Output format
@@ -517,7 +555,7 @@ function ImageResizerTool() {
       state.setOutput(null);
       state.setProgress(10);
       state.setIsWorking(true);
-      validateSize(file, 50);
+      validateSize(file, FILE_LIMITS_MB.image);
 
       const image = await loadImage(file);
       const targetWidth = Number(width);
@@ -559,10 +597,7 @@ function ImageResizerTool() {
   return (
     <div className="space-y-4">
       <FileDropzone accept="image/jpeg,image/png,image/webp" onFiles={(files) => setFile(files[0] || null)} helperText="Resize with optional aspect lock" />
-      {file ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={URL.createObjectURL(file)} alt="Input preview" className="max-h-56 rounded-lg" />
-      ) : null}
+      <ImagePreview file={file} />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1 text-sm">
           Width (px)
@@ -613,7 +648,7 @@ function GifMakerTool() {
       state.setOutput(null);
       state.setProgress(10);
       state.setIsWorking(true);
-      files.forEach((file) => validateSize(file, 20));
+      files.forEach((file) => validateSize(file, FILE_LIMITS_MB.gifFrame));
 
       const ffmpeg = await getFFmpeg();
       state.setProgress(25);
@@ -623,7 +658,7 @@ function GifMakerTool() {
         await writeInputFile(ffmpeg, frameName, files[i]);
       }
 
-      const outputName = `animation-${Date.now()}.gif`;
+      const outputName = `animated-${files.length}-frames.gif`;
       await ffmpeg.exec([
         "-framerate",
         String(Math.max(1, Number(fps) || 3)),
@@ -685,7 +720,7 @@ function PdfMergeTool() {
       state.setOutput(null);
       state.setProgress(10);
       state.setIsWorking(true);
-      files.forEach((file) => validateSize(file, 50));
+      files.forEach((file) => validateSize(file, FILE_LIMITS_MB.pdf));
 
       const merged = await PDFDocument.create();
       for (let i = 0; i < files.length; i += 1) {
@@ -698,7 +733,7 @@ function PdfMergeTool() {
 
       const outputBytes = await merged.save();
       const blob = new Blob([Uint8Array.from(outputBytes)], { type: "application/pdf" });
-      state.setOutput({ blob, name: `merged-${Date.now()}.pdf`, type: blob.type });
+      state.setOutput({ blob, name: `merged-${files.length}-files.pdf`, type: blob.type });
       state.setProgress(100);
     } catch (error) {
       state.setError(error instanceof Error ? error.message : "Unable to merge selected PDFs.");
@@ -826,7 +861,7 @@ function ZipTools() {
     try {
       setError("");
       setWorking(true);
-      validateSize(extractFile, 100);
+      validateSize(extractFile, FILE_LIMITS_MB.zip);
       const zip = await JSZip.loadAsync(await extractFile.arrayBuffer());
       const entries: Array<{ name: string; blob: Blob }> = [];
 

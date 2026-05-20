@@ -1,6 +1,13 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 export function SearchBar() {
+  const cardsRef = useRef<HTMLElement[] | null>(null);
+  useEffect(() => {
+    cardsRef.current = Array.from(document.querySelectorAll<HTMLElement>("[data-tool-card]"));
+  }, []);
+
   return (
     <input
       type="search"
@@ -8,7 +15,7 @@ export function SearchBar() {
       className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none ring-blue-500 transition focus:ring"
       onChange={(event) => {
         const query = event.currentTarget.value.trim().toLowerCase();
-        const cards = document.querySelectorAll<HTMLElement>("[data-tool-card]");
+        const cards = cardsRef.current || [];
         cards.forEach((card) => {
           const title = card.dataset.title || "";
           const description = card.dataset.description || "";

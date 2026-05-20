@@ -1,6 +1,6 @@
 "use client";
 
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import { fetchFile } from "@ffmpeg/util";
 import type { FFmpeg } from "@ffmpeg/ffmpeg";
 
 let ffmpegInstance: FFmpeg | null = null;
@@ -15,11 +15,9 @@ export async function getFFmpeg() {
     loadingPromise = (async () => {
       const { FFmpeg } = await import("@ffmpeg/ffmpeg");
       const ffmpeg = new FFmpeg();
-      const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm";
-
       await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+        coreURL: "/ffmpeg/ffmpeg-core.js",
+        wasmURL: "/ffmpeg/ffmpeg-core.wasm",
       });
 
       ffmpegInstance = ffmpeg;

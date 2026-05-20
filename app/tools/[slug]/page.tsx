@@ -7,8 +7,9 @@ export function generateStaticParams() {
   return TOOLS.map((tool) => ({ slug: tool.slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
-  const tool = TOOL_BY_SLUG[params.slug as keyof typeof TOOL_BY_SLUG];
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const tool = TOOL_BY_SLUG[slug as keyof typeof TOOL_BY_SLUG];
   if (!tool) {
     return { title: "Tool not found" };
   }
@@ -19,9 +20,10 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   };
 }
 
-export default function ToolPage({ params }: { params: { slug: string } }) {
-  const tool = TOOL_BY_SLUG[params.slug as keyof typeof TOOL_BY_SLUG];
+export default async function ToolPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const tool = TOOL_BY_SLUG[slug as keyof typeof TOOL_BY_SLUG];
   if (!tool) notFound();
 
-  return <ToolClientPage slug={params.slug} />;
+  return <ToolClientPage slug={slug} />;
 }
