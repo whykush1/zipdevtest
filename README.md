@@ -1,33 +1,8 @@
-# zip.dev (MVP)
+# zip.dev tools hub (MVP)
 
-A clean, client-side tools hub (original UI/copy) inspired by the idea of a multi-tool site.
+Clean, original, client-side tools hub built with Next.js + TypeScript + Tailwind.
 
-## Local development
-
-```bash
-npm install
-npm run dev
-```
-
-## Build
-
-```bash
-npm run build
-npm start
-```
-
-## Deploy (Vercel)
-
-- Import the GitHub repo into Vercel
-- Framework preset: Next.js
-- Add your domain `zip.dev`
-
-## Notes / limitations
-
-- All processing runs **in the browser** (no backend). Large files may be slow and memory-heavy.
-- Tools that use FFmpeg (wasm) are lazy-loaded per-tool to reduce initial load.
-
-## Tools (MVP)
+## Included tools
 
 1. Video Compressor
 2. Video Trimmer
@@ -39,3 +14,45 @@ npm start
 8. PDF Merge
 9. QR Code Generator
 10. ZIP Extract / Create ZIP
+
+## Tech stack
+
+- Next.js (App Router) + TypeScript
+- Tailwind CSS
+- `@ffmpeg/ffmpeg` + `@ffmpeg/util` (lazy-loaded only on media tools)
+- `pdf-lib` (PDF merge)
+- `jszip` (zip create/extract)
+- `qrcode` (QR generation)
+
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+Open http://localhost:3000
+
+## Lint and build
+
+```bash
+npm run lint
+npm run build
+npm start
+```
+
+## Deploy
+
+Recommended: Vercel
+
+1. Import this repo into Vercel
+2. Framework preset: Next.js
+3. Add custom domain `zip.dev` if desired
+
+## Client-side limitations
+
+- All processing is in-browser. No backend is required.
+- Large media files can be slow and memory-intensive.
+- Browser memory limits can stop very large FFmpeg jobs.
+- Supported formats are limited to what browser APIs and ffmpeg.wasm can process.
+- ZIP extraction provides individual file downloads from the archive.
